@@ -3,7 +3,7 @@ __author__ = 'Ahmet Erkan ÇELİK'
 
 import psycopg2
 import argparse
-from util.modelgenerator.metafactory import metafactory
+from metafactory import metafactory
 
 parser = argparse.ArgumentParser()
 
