@@ -1,7 +1,6 @@
 SAModelGenerator
 ================
-
-models.py generator for SQLAlchemy and Postgresql
+This reverse engineering project as models.py generator for SQLAlchemy and Postgresql
 
 ###usage:
 
