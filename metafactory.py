@@ -10,14 +10,13 @@ class metafactory:
         models = ""
         classes = ""
         for t in ts:
-            models += "%sTable = Table(u'%s', Base.metadata,\n %s,\n\n    #schema\n    schema='%s'%s\n)\n\n" % (str(t[1]).title(), t[1], metafactory.colums(cur, t[1]),schema, metafactory.fk(cur, t[1], schema))
             if classes != "":
                 classes +="\n\n"
-            classes += "class %s(Base):\n    __table__ = %sTable%s" % ( str(t[1]).title(), str(t[1]).title(), metafactory.br(cur, t[1]))
+            classes += "class %s(Base):\n    __tablename__ = '%s'\n%s%s%s" % (str(t[1]).title(), t[1], metafactory.colums(cur, t[1], schema), metafactory.rs(cur, t[1]), metafactory.br(cur, t[1]))
 
         return models+"\n\n"+classes
     @staticmethod
-    def colums(cur, tablename):
+    def colums(cur, tablename, schema ="public"):
         cur.execute("""
                         SELECT DISTINCT ON (attnum) pg_attribute.attnum,pg_attribute.attname as column_name,
                            format_type(pg_attribute.atttypid, pg_attribute.atttypmod) as data_type,
@@ -48,7 +47,7 @@ class metafactory:
                 dt = dt.upper()+"()"
             if cols != "":
                 cols += ",\n"
-            cols += "    Column(u'%s', %s" % (c[1], dt)
+            cols += "    %s = Column(%s" % (c[1], dt)
             if c[6]:
                 if re.search("nextval\('", c[7]):
                     cols += ", Sequence('%s')" % str(c[7]).replace("nextval('", "").replace("'::regclass)", "")
@@ -56,41 +55,33 @@ class metafactory:
                     cols += ", server_default= text('%s')" % c[7]
             if c[8] == "p":
                 cols += ", primary_key=True"
+            elif c[8] == "f":
+                cols += ", ForeignKey('%s')" % (metafactory.fk(cur,tablename,c[1], schema))
             if c[5]:
                 cols += ", nullable=False"
+
             cols += ")"
-        cols = "   #column definitions\n"+ cols
+        cols = "    #column definitions\n"+ cols
         return cols
 
     @staticmethod
-    def fk(cur, tablename,schema="public"):
-        fks = metafactory.forein_keys(cur, tablename)
-        foreignkeys =""
-        for f in fks:
-            if foreignkeys != "":
-                foreignkeys += ",\n"
-            foreignkeys += "    ForeignKeyConstraint(['%s'],['%s.%s.%s'],name='%s')" % (f[1], schema, f[2], f[3], f[0])
-
-        if foreignkeys!="":
-            foreignkeys = ",\n\n    #foreign keys\n"+foreignkeys
-
-        return foreignkeys
-
-    def br(cur, tablename):
-        fks = metafactory.forein_keys(cur, tablename)
-        foreignkeys =""
-        for f in fks:
-            if foreignkeys != "":
-                foreignkeys += "\n"
-            foreignkeys += "    %s = relationship('%s', backref='%ss')" % (str(f[2]).title(), str(f[2]).title(), str(tablename).title())
-
-        if foreignkeys!="":
-            foreignkeys = "\n\n    #relation definitions: many to one with backref (also takes care of one to many)\n"+foreignkeys
-
-        return foreignkeys
-
+    def fk(cur, tablename,column,schema="public"):
+        cur.execute("""
+            SELECT pg_constraint.conname  as fkname, pga2.attname as colname, pc2.relname as referenced_table_name, pga1.attname as referenced_column_name
+            FROM pg_class pc1, pg_class pc2, pg_constraint, pg_attribute pga1, pg_attribute pga2
+            WHERE pg_constraint.conrelid = pc1.oid
+            AND pc2.oid = pg_constraint.confrelid
+            AND pga1.attnum = pg_constraint.confkey[1]
+            AND pga1.attrelid = pc2.oid
+            AND pga2.attnum = pg_constraint.conkey[1]
+            AND pga2.attrelid = pc1.oid
+            AND pc1.relname = '%s'
+            AND pga2.attname = '%s'
+        """ % (tablename, column))
+        fks = cur.fetchall()
+        return "%s.%s.%s" % (schema, fks[0][2], fks[0][3])
     @staticmethod
-    def forein_keys(cur, tablename, many_to_one = False):
+    def rs(cur, tablename):
         cur.execute("""
             SELECT pg_constraint.conname  as fkname, pga2.attname as colname, pc2.relname as referenced_table_name, pga1.attname as referenced_column_name
             FROM pg_class pc1, pg_class pc2, pg_constraint, pg_attribute pga1, pg_attribute pga2
@@ -102,5 +93,42 @@ class metafactory:
             AND pga2.attrelid = pc1.oid
             AND pc1.relname = '%s'
         """ % tablename)
-        return cur.fetchall()
+        fks = cur.fetchall()
+        foreignkeys =""
+
+        for f in fks:
+            if foreignkeys != "":
+                foreignkeys += "\n"
+            foreignkeys += "    %s = relationship(%s, primaryjoin=%s == %s.%s)" % (f[2], str(f[2]).title(), f[1], str(f[2]).title(), f[3])
+
+        if foreignkeys != "":
+            foreignkeys = "\n\n    #relation definitions: many to one with backref\n"+foreignkeys
+
+        return foreignkeys
+
+
+    def br(cur, tablename):
+        cur.execute("""
+            SELECT pg_constraint.conname  as fkname, pga1.attname as colname, pc1.relname as referenced_table_name, pga2.attname as referenced_column_name
+            FROM pg_class pc1, pg_class pc2, pg_constraint, pg_attribute pga1, pg_attribute pga2
+            WHERE pg_constraint.conrelid = pc1.oid
+            AND pc2.oid = pg_constraint.confrelid
+            AND pga1.attnum = pg_constraint.confkey[1]
+            AND pga1.attrelid = pc2.oid
+            AND pga2.attnum = pg_constraint.conkey[1]
+            AND pga2.attrelid = pc1.oid
+            AND pc2.relname = '%s'
+        """ % tablename)
+        fks = cur.fetchall()
+        foreignkeys =""
+
+        for f in fks:
+            if foreignkeys != "":
+                foreignkeys += "\n"
+            foreignkeys += "    %ss = relationship('%s', backref='%s')" % (f[2], str(f[2]).title(), tablename)
+
+        if foreignkeys != "":
+            foreignkeys = "\n\n    #relation definitions: one to many with backref\n"+foreignkeys
+
+        return foreignkeys
 
