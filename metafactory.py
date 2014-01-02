@@ -10,7 +10,7 @@ class metafactory:
         models = ""
         classes = ""
         for t in ts:
-            models += "%sTable = Table(u'%s', Base.metadata,\n %s%s)\n\n" % (str(t[1]).title(), t[1], metafactory.colums(cur, t[1]), metafactory.fk(cur, t[1], schema))
+            models += "%sTable = Table(u'%s', Base.metadata,\n %s,\n\n    #schema\n    schema='%s'%s\n)\n\n" % (str(t[1]).title(), t[1], metafactory.colums(cur, t[1]),schema, metafactory.fk(cur, t[1], schema))
             if classes != "":
                 classes +="\n\n"
             classes += "class %s(Base):\n    __table__ = %sTable%s" % ( str(t[1]).title(), str(t[1]).title(), metafactory.br(cur, t[1]))
