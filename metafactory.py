@@ -1,3 +1,5 @@
+from sqlalchemy.sql.elements import Null
+
 __author__ = 'Ahmet Erkan ÇELİK'
 import re
 
@@ -10,12 +12,17 @@ class metafactory:
         models = ""
         classes = ""
         for t in ts:
-            models += "%sTable = Table(u'%s', Base.metadata,\n %s%s,\n\n    #schema\n    schema='%s'\n)\n\n" % (str(t[1]).title(), t[1], metafactory.colums(cur, t[1]), metafactory.fk(cur, t[1], schema),schema)
+            # models += "%sTable = Table(u'%s', Base.metadata,\n %s%s,\n\n    #schema\n    schema='%s'\n)\n\n" % (str(t[1]).title(), t[1], metafactory.colums(cur, t[1]), metafactory.fk(cur, t[1], schema),schema)
             if classes != "":
-                classes +="\n\n"
-            classes += "class %s(Base):\n    __table__ = %sTable%s" % ( str(t[1]).title(), str(t[1]).title(), metafactory.br(cur, t[1]))
+                classes +="\n\n\n"
+            tableName = str(t[1])
+            className = tableName.title().replace('_', '')
+            colums = metafactory.colums(cur, t[1])
+            br = metafactory.br(cur, t[1])
 
-        return models+"\n\n"+classes
+            classes += "class %s(Base):\n    __tablename__ = u'%s'%s%s" % (className, tableName, colums, br)
+
+        return classes
     @staticmethod
     def colums(cur, tablename):
         cur.execute("""
@@ -42,13 +49,15 @@ class metafactory:
             dt = c[2]
             if re.search("character varying", dt):
                 dt = "VARCHAR(length=%s)" % (int(c[4])-4)
+            elif re.search("character", dt):
+                dt = "CHAR(length=%s)" % (int(c[4])-4)
             elif re.search("timestamp", dt):
                 dt = "TIMESTAMP()"
             else:
                 dt = dt.upper()+"()"
             if cols != "":
                 cols += ",\n"
-            cols += "    Column(u'%s', %s" % (c[1], dt)
+            cols += "    %s = Column(%s" % (c[1], dt)
             if c[6]:
                 if re.search("nextval\('", c[7]):
                     cols += ", Sequence('%s')" % str(c[7]).replace("nextval('", "").replace("'::regclass)", "")
@@ -56,11 +65,22 @@ class metafactory:
                     cols += ", server_default= text('%s')" % c[7]
             if c[8] == "p":
                 cols += ", primary_key=True"
+            elif c[8] == "f":
+                cols += ", ForeignKey('%s')" % metafactory.isFk(cur,tablename,c[1])
             if c[5]:
                 cols += ", nullable=False"
             cols += ")"
-        cols = "   #column definitions\n"+ cols
+        cols = "\n\n    #column definitions\n"+ cols
         return cols
+
+    @staticmethod
+    def isFk(cur, tablename, column):
+        fks = metafactory.forein_keys(cur, tablename)
+        for c in fks:
+            if c[1] == column:
+                return "%s.%s" % (c[2], c[3])
+        else:
+            return Null
 
     @staticmethod
     def fk(cur, tablename,schema="public"):
@@ -82,7 +102,8 @@ class metafactory:
         for f in fks:
             if foreignkeys != "":
                 foreignkeys += "\n"
-            foreignkeys += "    %s = relationship('%s', backref='%ss')" % (str(f[2]).title(), str(f[2]).title(), str(tablename).title())
+            var = str(f[1]).title().replace('_', '')
+            foreignkeys += "    %s = relationship('%s')" % (var, str(f[2]).title())
 
         if foreignkeys!="":
             foreignkeys = "\n\n    #relation definitions: many to one with backref (also takes care of one to many)\n"+foreignkeys
