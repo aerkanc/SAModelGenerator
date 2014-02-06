@@ -56,7 +56,7 @@ class metafactory:
             else:
                 dt = dt.upper()+"()"
             if cols != "":
-                cols += ",\n"
+                cols += "\n"
             cols += "    %s = Column(%s" % (c[1], dt)
             if c[6]:
                 if re.search("nextval\('", c[7]):
