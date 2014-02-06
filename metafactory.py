@@ -102,8 +102,11 @@ class metafactory:
         for f in fks:
             if foreignkeys != "":
                 foreignkeys += "\n"
-            var = str(f[1]).title().replace('_', '')
-            foreignkeys += "    %s = relationship('%s')" % (var, str(f[2]).title())
+            col = str(f[1])
+            var = col.title().replace('_', '')
+            parentTable=str(f[2]).title().replace("_","")
+            parentCol = f[3]
+            foreignkeys += "    %s = relationship('%s', primaryjoin='%s == %s.%s')" % (var, parentTable, col, parentTable, parentCol)
 
         if foreignkeys!="":
             foreignkeys = "\n\n    #relation definitions: many to one with backref (also takes care of one to many)\n"+foreignkeys
