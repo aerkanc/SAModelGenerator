@@ -62,7 +62,7 @@ class metafactory:
                 if re.search("nextval\('", c[7]):
                     cols += ", Sequence('%s')" % str(c[7]).replace("nextval('", "").replace("'::regclass)", "")
                 else:
-                    cols += ", server_default= text('%s')" % c[7]
+                    cols += ", server_default=text('%s')" % c[7]
             if c[8] == "p":
                 cols += ", primary_key=True"
             elif c[8] == "f":

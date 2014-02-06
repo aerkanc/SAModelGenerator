@@ -27,12 +27,14 @@ except:
 cur = conn.cursor()
 file = open(args.file, "w", encoding='utf-8')
 file.write("""from sqlalchemy import *
-from sqlalchemy.orm import scoped_session, sessionmaker, relation, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.postgres import *
 import json
 
 Base = declarative_base()
+
+
 """)
 file.write(metafactory.tables(cur))
 file.close()
