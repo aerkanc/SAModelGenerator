@@ -30,6 +30,7 @@ file.write("""from sqlalchemy import *
 from sqlalchemy.orm import scoped_session, sessionmaker, relation, relationship
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.postgres import *
+import json
 
 Base = declarative_base()
 """)

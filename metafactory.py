@@ -20,7 +20,7 @@ class metafactory:
             colums = metafactory.colums(cur, t[1])
             br = metafactory.br(cur, t[1])
 
-            classes += "class %s(Base):\n    __tablename__ = u'%s'%s%s" % (className, tableName, colums, br)
+            classes += "class %s(Base):\n    __tablename__ = u'%s'%s%s\n\n%s" % (className, tableName, colums, br, metafactory.toJsonMethod(cur, t[1]))
 
         return classes
     @staticmethod
@@ -103,10 +103,11 @@ class metafactory:
             if foreignkeys != "":
                 foreignkeys += "\n"
             col = str(f[1])
-            var = col.title().replace('_', '')
             parentTable=str(f[2]).title().replace("_","")
+            var = str(tablename).title().replace("_", "")+col.title().replace('_', '')
             parentCol = f[3]
             foreignkeys += "    %s = relationship('%s', primaryjoin='%s == %s.%s')" % (var, parentTable, col, parentTable, parentCol)
+            # foreignkeys += "    %s = relationship('%s')" % (var, parentTable)
 
         if foreignkeys!="":
             foreignkeys = "\n\n    #relation definitions: many to one with backref (also takes care of one to many)\n"+foreignkeys
@@ -127,3 +128,30 @@ class metafactory:
             AND pc1.relname = '%s'
         """ % tablename)
         return cur.fetchall()
+
+    @staticmethod
+    def toJsonMethod(cur, tablename):
+        metod = "    def to_json(self):\n        obj = {"
+        cur.execute("""
+                        SELECT DISTINCT ON (attnum) pg_attribute.attnum,pg_attribute.attname as column_name,
+                           format_type(pg_attribute.atttypid, pg_attribute.atttypmod) as data_type,
+                           pg_attribute.attlen as lenght, pg_attribute.atttypmod as lenght_var,
+                           pg_attribute.attnotnull as is_notnull,
+                           pg_attribute.atthasdef as has_default,
+                           adsrc as default_value,
+                           pg_constraint.contype
+                        FROM
+                          pg_attribute
+                          INNER JOIN pg_class ON (pg_attribute.attrelid = pg_class.oid)
+                          INNER JOIN pg_type ON (pg_attribute.atttypid = pg_type.oid)
+                          LEFT OUTER JOIN pg_attrdef ON (pg_attribute.attrelid = pg_attrdef.adrelid AND pg_attribute.attnum=pg_attrdef.adnum)
+                          LEFT OUTER JOIN pg_index ON (pg_class.oid = pg_index.indrelid AND pg_attribute.attnum = any(pg_index.indkey))
+                          LEFT OUTER JOIN pg_constraint ON (pg_constraint.conrelid = pg_class.oid AND pg_constraint.conkey[1]= pg_attribute.attnum)
+                         WHERE pg_class.relname = '%s'
+                         AND pg_attribute.attnum>0
+                    """ % tablename)
+        cs = cur.fetchall()
+        for c in cs:
+            metod += "\n            '%s': self.%s," % (c[1], c[1])
+        metod += "\n        }\n        return json.dumps(obj)"
+        return metod
