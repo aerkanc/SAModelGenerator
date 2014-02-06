@@ -104,9 +104,10 @@ class metafactory:
                 foreignkeys += "\n"
             col = str(f[1])
             parentTable=str(f[2]).title().replace("_","")
-            var = str(tablename).title().replace("_", "")+col.title().replace('_', '')
+            tableClass = str(tablename).title().replace("_", "")
+            var = tableClass + col.title().replace('_', '')
             parentCol = f[3]
-            foreignkeys += "    %s = relationship('%s', primaryjoin='%s == %s.%s')" % (var, parentTable, col, parentTable, parentCol)
+            foreignkeys += "    %s = relationship('%s', primaryjoin='%s.%s == %s.%s')" % (var, parentTable, tableClass ,col, parentTable, parentCol)
             # foreignkeys += "    %s = relationship('%s')" % (var, parentTable)
 
         if foreignkeys!="":
