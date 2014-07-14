@@ -153,6 +153,9 @@ class metafactory:
                     """ % tablename)
         cs = cur.fetchall()
         for c in cs:
-            metod += "\n            '%s': self.%s," % (c[1], c[1])
+            if re.search("timestamp",c[2]):
+                metod += ("\n            '%s': self.%s" % (c[1], c[1])) + ".strftime('%a, %d %b %Y %H:%M:%S +0000'),"
+            else:
+                metod += "\n            '%s': self.%s," % (c[1], c[1])
         metod += "\n        }\n        return json.dumps(obj)"
         return metod
