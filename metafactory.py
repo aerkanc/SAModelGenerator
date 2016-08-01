@@ -54,7 +54,7 @@ class metafactory:
             elif re.search("timestamp", dt):
                 dt = "TIMESTAMP()"
             else:
-                dt = dt.upper()+"()"
+                dt = dt.replace(" ","_").upper()+"()"
             if cols != "":
                 cols += "\n"
             cols += "    %s = Column(%s" % (c[1], dt)
@@ -70,7 +70,7 @@ class metafactory:
             if c[5]:
                 cols += ", nullable=False"
             cols += ")"
-        cols = "\n\n    #column definitions\n"+ cols
+        cols = "\n\n    # column definitions\n"+ cols
         return cols
 
     @staticmethod
